@@ -10,6 +10,7 @@ import {
     Platform,
     View,
     SafeAreaView,
+    TouchableWithoutFeedback
 } from 'react-native';
 
 import {
@@ -99,6 +100,7 @@ export default class ImageView extends Component<PropsType, StateType> {
         isTapZoomEnabled: true,
         isPinchZoomEnabled: true,
         isSwipeCloseEnabled: true,
+        statusBarTranslucent: true,
         glideAlways: false,
         glideAlwaysDelay: 75,
         controls: {prev: null, next: null},
@@ -141,13 +143,13 @@ export default class ImageView extends Component<PropsType, StateType> {
         const {x, y} = this.getInitialTranslate();
         this.imageTranslateValue = new Animated.ValueXY({x, y});
 
-        this.panResponder = generatePanHandlers(
+        /*this.panResponder = generatePanHandlers(
             (event: EventType): void => this.onGestureStart(event.nativeEvent),
             (event: EventType, gestureState: GestureState): void =>
                 this.onGestureMove(event.nativeEvent, gestureState),
             (event: EventType, gestureState: GestureState): void =>
                 this.onGestureRelease(event.nativeEvent, gestureState)
-        );
+        );*/
 
         const imagesWithoutSize = getImagesWithoutSize(
             addIndexesToImages(props.images)
@@ -499,8 +501,8 @@ export default class ImageView extends Component<PropsType, StateType> {
         this.setState({images});
     }
 
-    onMomentumScrollBegin = () => {
-        this.isScrolling = true;
+    /*onMomentumScrollBegin = () => {
+        this.isScrolling = false;
         if (this.glideAlwaysTimer) {
             // If FlatList started gliding then prevent glideAlways scrolling
             clearTimeout(this.glideAlwaysTimer);
@@ -510,7 +512,7 @@ export default class ImageView extends Component<PropsType, StateType> {
     onMomentumScrollEnd = () => {
         this.isScrolling = false;
     };
-
+*/
     getItemLayout = (_: *, index: number): Object => {
         const {screenWidth} = this.state.screenDimensions;
 
@@ -538,9 +540,9 @@ export default class ImageView extends Component<PropsType, StateType> {
         const {imageIndex, screenDimensions} = this.state;
         const {width, height} = image;
 
-        if (!width || !height) {
+        /*if (!width || !height) {
             return {opacity: 0};
-        }
+        }*/
 
         // very strange caching, fix it with changing size to 1 pixel
         const {x, y} = calculateInitialTranslate(
@@ -612,11 +614,15 @@ export default class ImageView extends Component<PropsType, StateType> {
     };
 
     scrollToNext = () => {
-        if (this.listRef && typeof this.listRef.scrollToIndex === 'function') {
-            this.listRef.scrollToIndex({
-                index: this.state.imageIndex + 1,
-                animated: true,
-            });
+        if((this.state.imageIndex + 1) >= this.props.images.length){
+            this.props.onRequestClose()
+        }else{
+            if (this.listRef && typeof this.listRef.scrollToIndex === 'function') {
+                this.listRef.scrollToIndex({
+                    index: this.state.imageIndex + 1,
+                    animated: true,
+                });
+            }
         }
     };
 
@@ -732,21 +738,21 @@ export default class ImageView extends Component<PropsType, StateType> {
 
     renderImage = ({item: image, index}: {item: *, index: number}): * => {
         const loaded = image.loaded && image.width && image.height;
-
         return (
-            <View
-                style={styles.imageContainer}
-                onStartShouldSetResponder={(): boolean => true}
-            >
-                <Animated.Image
-                    resizeMode="cover"
-                    source={image.source}
-                    style={this.getImageStyle(image, index)}
-                    onLoad={(): void => this.onImageLoaded(index)}
-                    {...this.panResponder.panHandlers}
-                />
-                {!loaded && <ActivityIndicator style={styles.loading} />}
-            </View>
+            <TouchableWithoutFeedback onPress={() => {this.scrollToNext()}}>
+                <View
+                    style={styles.imageContainer}
+                    onStartShouldSetResponder={(): boolean => true}
+                >
+                    <Animated.Image
+                        resizeMode="contain"
+                        source={image.source}
+                        style={this.getImageStyle(image, index)}
+                        onLoad={(): void => this.onImageLoaded(index)}
+                    />
+                    {!loaded && <ActivityIndicator style={styles.loading} />}
+                </View>
+            </TouchableWithoutFeedback>
         );
     };
 
@@ -782,32 +788,14 @@ export default class ImageView extends Component<PropsType, StateType> {
             imageScale === imageInitialScale && imageIndex < images.length - 1;
 
         return (
+
             <Modal
-                transparent
+                presentationStyle="fullScreen"
                 visible={isVisible}
                 animationType={animationType}
-                onRequestClose={this.close}
-                supportedOrientations={['portrait', 'landscape']}
+                onRequestClose={this.props.onRequestClose}
+                supportedOrientations={['portrait']}
             >
-                <Animated.View
-                    style={[
-                        {backgroundColor: animatedBackgroundColor},
-                        styles.underlay,
-                    ]}
-                />
-                <Animated.View
-                    style={[
-                        styles.header,
-                        {
-                            transform: headerTranslate,
-                        },
-                    ]}
-                >
-                    <SafeAreaView style={{flex: 1}}>
-                        {!!close &&
-                            React.createElement(close, {onPress: this.close})}
-                    </SafeAreaView>
-                </Animated.View>
                 <FlatList
                     horizontal
                     pagingEnabled
@@ -824,25 +812,8 @@ export default class ImageView extends Component<PropsType, StateType> {
                     onMomentumScrollBegin={this.onMomentumScrollBegin}
                     onMomentumScrollEnd={this.onMomentumScrollEnd}
                 />
-                {prev &&
-                    isPrevVisible &&
-                    React.createElement(prev, {onPress: this.scrollToPrev})}
-                {next &&
-                    isNextVisible &&
-                    React.createElement(next, {onPress: this.scrollToNext})}
-                {renderFooter && (
-                    <Animated.View
-                        style={[styles.footer, {transform: footerTranslate}]}
-                        onLayout={event => {
-                            this.footerHeight = event.nativeEvent.layout.height;
-                        }}
-                    >
-                        {typeof renderFooter === 'function' &&
-                            images[imageIndex] &&
-                            renderFooter(images[imageIndex])}
-                    </Animated.View>
-                )}
             </Modal>
+
         );
     }
 }

@@ -24,6 +24,7 @@ export default function createStyles({screenWidth, screenHeight}) {
             width: screenWidth,
         },
         imageContainer: {
+            backgroundColor: '#dcdcdcdc',
             width: screenWidth,
             height: screenHeight,
             overflow: 'hidden',
